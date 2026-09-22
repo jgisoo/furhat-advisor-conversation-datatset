@@ -1,0 +1,241 @@
+data class ChatbotResponse(
+    val text: String,
+    val gesture: String,
+    val emotion: String,
+    val tokensUsed: Long = 0
+)
+
+class EnhancedOpenAIChatbot(
+    val persona: Persona,
+    val userName: String = "Advisor"
+) {
+
+    val service = OpenAiService(serviceKey)
+
+    var temperature = 0.9
+    var maxTokens = 180
+    var topP = 1.0
+    var frequencyPenalty = 0.6
+    var presencePenalty = 0.5
+
+    /**
+     * Streams the next response from OpenAI, calling onSentenceReady for each complete sentence.
+     * Furhat starts speaking the first sentence after ~1-2s instead of waiting for the full response.
+     * Returns the full ChatbotResponse (with gesture/emotion) after streaming completes.
+     */
+    fun streamNextResponseWithGesture(
+        onSentenceReady: (String) -> Unit,
+        onGestureReady: (gesture: String, emotion: String) -> Unit = { _, _ -> }
+    ): ChatbotResponse {
+        val apiStartTime = System.currentTimeMillis()
+
+        val history = Furhat.dialogHistory.all.takeLast(15).mapNotNull {
+            when (it) {
+                is DialogHistory.ResponseItem -> "$userName: ${it.response.text}"
+                is DialogHistory.UtteranceItem -> "${persona.name}: ${it.toText()}"
+                else -> null
+            }
+        }.joinToString(separator = "\n")
+
+        val systemPrompt = persona.getSystemPromptWithGestures()
+        val messages = listOf(
+            ChatMessage(ChatMessageRole.SYSTEM.value(), systemPrompt),
+            ChatMessage(ChatMessageRole.USER.value(), "$history\n${persona.name}:")
+        )
+
+        val chatRequest = ChatCompletionRequest.builder()
+            .model("gpt-4o-mini")
+            .messages(messages)
+            .temperature(temperature)
+            .maxTokens(maxTokens)
+            .topP(topP)
+            .frequencyPenalty(frequencyPenalty)
+            .presencePenalty(presencePenalty)
+            .build()
+
+        // Queue items shared between producer and consumer.
+        // A special prefix marks gesture signals so they are dispatched on the Furhat flow thread
+        // right before the first furhat.say() call — safe to call SDK methods from there.
+        val DONE = "\u0000"
+        val GESTURE_PREFIX = "##GESTURE##:"
+        val sentenceQueue = java.util.concurrent.LinkedBlockingQueue<String>()
+        val fullResponse = StringBuilder()
+
+        // Producer thread: stream OpenAI tokens, detect gesture/emotion early (they now come first
+        // in the JSON), then enqueue sentences as they are detected.
+        val producerThread = Thread {
+            var gestureSignaled = false
+            var inTextValue = false
+            var textDone = false
+            val sentenceBuffer = StringBuilder()
+            var prevChar: Char = ' '
+            var enqueuedSomething = false
+
+            val enqueue: (String) -> Unit = { sentence ->
+                enqueuedSomething = true
+                sentenceQueue.put(sentence)
+            }
+
+            try {
+                service.streamChatCompletion(chatRequest).blockingForEach { chunk ->
+                    val delta = chunk.choices.firstOrNull()?.message?.content ?: return@blockingForEach
+                    fullResponse.append(delta)
+
+                    if (textDone) return@blockingForEach
+
+                    val accumulated = fullResponse.toString()
+
+                    // Detect gesture/emotion as soon as their fields complete in the stream.
+                    // Prompt orders them before "text", so this fires before the first sentence
+                    // is enqueued — the gesture signal arrives on the consumer before any speech.
+                    if (!gestureSignaled) {
+                        val gMatch = Regex("\"gesture\"\\s*:\\s*\"([^\"]+)\"").find(accumulated)
+                        if (gMatch != null) {
+                            val gesture = gMatch.groupValues[1]
+                            val emotion = Regex("\"emotion\"\\s*:\\s*\"([^\"]+)\"")
+                                .find(accumulated)?.groupValues?.get(1) ?: "neutral"
+                            sentenceQueue.put("$GESTURE_PREFIX$gesture:$emotion")
+                            gestureSignaled = true
+                        }
+                    }
+
+                    if (!inTextValue) {
+                        val match = Regex("\"text\"\\s*:\\s*\"").find(accumulated)
+                        if (match != null) {
+                            inTextValue = true
+                            val afterOpenQuote = accumulated.substring(match.range.last + 1)
+                            if (afterOpenQuote.isNotEmpty()) {
+                                val ended = processTextChunk(afterOpenQuote, sentenceBuffer, prevChar, enqueue)
+                                if (ended) { textDone = true; inTextValue = false }
+                                prevChar = afterOpenQuote.last()
+                            }
+                        }
+                    } else {
+                        val ended = processTextChunk(delta, sentenceBuffer, prevChar, enqueue)
+                        if (ended) { textDone = true; inTextValue = false }
+                        if (delta.isNotEmpty()) prevChar = delta.last()
+                    }
+                }
+
+                val remaining = sentenceBuffer.toString().trim()
+                if (remaining.isNotBlank()) enqueue(remaining)
+
+                if (!enqueuedSomething) {
+                    val parsed = parseResponse(fullResponse.toString())
+                    if (parsed.text.isNotBlank()) {
+                        parsed.text.split(Regex("(?<=[.!?])\\s+")).forEach { s ->
+                            if (s.isNotBlank()) sentenceQueue.put(s)
+                        }
+                    } else {
+                        sentenceQueue.put("I'm not sure what to say right now.")
+                    }
+                }
+            } catch (e: Exception) {
+                println("OpenAI streaming error: ${e.message}")
+                if (!enqueuedSomething) sentenceQueue.put("I'm not sure what to say right now.")
+            } finally {
+                sentenceQueue.put(DONE)
+            }
+        }
+        producerThread.isDaemon = true
+        producerThread.start()
+
+        // Consumer: runs on the Furhat flow thread.
+        // Gesture signals are handled here (safe to call furhat.gesture()) right before the
+        // first furhat.say() — so the gesture plays concurrently with speech, not after it.
+        while (true) {
+            val item = sentenceQueue.poll(30, java.util.concurrent.TimeUnit.SECONDS) ?: break
+            when {
+                item == DONE -> break
+                item.startsWith(GESTURE_PREFIX) -> {
+                    val payload = item.removePrefix(GESTURE_PREFIX).split(":")
+                    onGestureReady(payload[0], payload.getOrElse(1) { "neutral" })
+                }
+                else -> onSentenceReady(item)
+            }
+        }
+
+        producerThread.join(5000)
+
+        println("⏱️ Total streaming + speech time: ${System.currentTimeMillis() - apiStartTime}ms")
+        println("OpenAI Streamed Response: $fullResponse")
+
+        return parseResponse(fullResponse.toString())
+    }
+
+    /**
+     * Processes a chunk of streamed text from inside the JSON "text" field.
+     * Detects sentence boundaries and calls onSentenceReady for each complete sentence.
+     * Returns true if the closing quote (end of text field) was found.
+     */
+    private fun processTextChunk(
+        chunk: String,
+        buffer: StringBuilder,
+        prevCharInit: Char,
+        onSentenceReady: (String) -> Unit
+    ): Boolean {
+        var prevChar = prevCharInit
+        for (char in chunk) {
+            // Detect unescaped closing quote = end of JSON text field
+            if (char == '"' && prevChar != '\\') {
+                val remaining = buffer.toString().trim()
+                if (remaining.isNotBlank()) onSentenceReady(remaining)
+                buffer.clear()
+                return true
+            }
+            buffer.append(char)
+            prevChar = char
+            // Speak on sentence boundaries, require minimum length to avoid splitting abbreviations
+            if ((char == '.' || char == '!' || char == '?') && buffer.length >= 10) {
+                val text = buffer.toString().trim()
+                if (text.isNotBlank()) {
+                    onSentenceReady(text)
+                    buffer.clear()
+                }
+            }
+        }
+        return false
+    }
+
+    /**
+     * Parses the full accumulated response string into a ChatbotResponse.
+     */
+    private fun parseResponse(fullResponse: String): ChatbotResponse {
+        return try {
+            val cleaned = fullResponse
+                .replace("```json", "")
+                .replace("```", "")
+                .trim()
+            val json = JSONObject(cleaned)
+            val parsedResponse = ChatbotResponse(
+                text = json.getString("text"),
+                gesture = json.optString("gesture", "tilt_left"),
+                emotion = json.optString("emotion", "neutral"),
+                tokensUsed = 0
+            )
+            println("Parsed gesture: ${parsedResponse.gesture}, emotion: ${parsedResponse.emotion}")
+            parsedResponse
+        } catch (e: Exception) {
+            println("JSON parse error after streaming: ${e.message}")
+            ChatbotResponse(
+                text = "I'm not sure what to say right now.",
+                gesture = "tilt_left",
+                emotion = "neutral",
+                tokensUsed = 0
+            )
+        }
+    }
+
+    /**
+     * Generates a closing statement when time is running out
+     */
+    fun getClosingStatement(): ChatbotResponse {
+            return ChatbotResponse(
+                text = "Thank you for chatting with me, that was really helpful.",
+                gesture = "nod",
+                emotion = "grateful",
+                tokensUsed = 0
+            )
+//        }
+    }
+}
