@@ -1,0 +1,164 @@
+data class ChatbotResponse(
+    val text: String,
+    val gesture: String,
+    val emotion: String,
+    val tokensUsed: Long = 0
+)
+class EnhancedOpenAIChatbot(
+    val persona: Persona,
+    val userName: String = "Interviewer"
+) {
+
+    val service = OpenAiService(serviceKey)
+
+    var temperature = 0.9
+    var maxTokens = 120  // Increased from 50 to allow complete sentences/thoughts
+    var topP = 1.0
+    var frequencyPenalty = 0.6
+    var presencePenalty = 0.4
+
+    /**
+     * Gets next response from OpenAI with gesture and emotion suggestions
+     * Returns a ChatbotResponse object containing text, gesture, and emotion
+     */
+    fun getNextResponseWithGesture(): ChatbotResponse {
+//        val apiStartTime = System.currentTimeMillis()
+        
+        val history = Furhat.dialogHistory.all.takeLast(15).mapNotNull {
+            when (it) {
+                is DialogHistory.ResponseItem -> {
+                    "$userName: ${it.response.text}"
+                }
+                is DialogHistory.UtteranceItem -> {
+                    "${persona.name}: ${it.toText()}"
+                }
+                else -> null
+            }
+        }.joinToString(separator = "\n")
+
+        // Use persona's system prompt with gesture instructions
+        val systemPrompt = persona.getSystemPrompt()
+
+        val messages = mutableListOf(
+            ChatMessage(ChatMessageRole.SYSTEM.value(), systemPrompt)
+        )
+
+        Furhat.dialogHistory.all.takeLast(10).forEach {
+            when (it) {
+                is DialogHistory.ResponseItem -> messages.add(
+                    ChatMessage(ChatMessageRole.USER.value(), it.response.text ?: "")
+                )
+                is DialogHistory.UtteranceItem -> messages.add(
+                    ChatMessage(ChatMessageRole.ASSISTANT.value(), """ 
+                    Respond now in STRICT JSON format.
+                    Do NOT include gestures inside the text.
+                    Do NOT use asterisks like *tripleBlink*.
+                    Return ONLY:
+
+                {
+                  "text": "...",
+                  "gesture": "...",
+                  "emotion": "..."
+                 }
+                 """)
+                )
+            }
+        }
+
+
+        val chatRequest = ChatCompletionRequest.builder()
+            .model("gpt-4o-mini")
+            .messages(messages)
+            .temperature(temperature)
+            .maxTokens(maxTokens)
+            .topP(topP)
+            .frequencyPenalty(frequencyPenalty)
+            .presencePenalty(presencePenalty)
+            .build()
+
+        try {
+            val apiCallStartTime = System.currentTimeMillis()
+            val completion = service.createChatCompletion(chatRequest)
+            val apiCallDuration = System.currentTimeMillis() - apiCallStartTime
+            
+            val responseText = completion.choices.first().message.content.trim()
+
+            // Capture token usage from API response
+            val totalTokens = completion.usage?.totalTokens ?: 0
+
+
+            // Parse JSON response - handle both with and without markdown code blocks
+            return try {
+                // Remove markdown code blocks if present
+                val cleanedResponse = responseText
+                    .replace("```json", "")
+                    .replace("```", "")
+                    .trim()
+
+                val json = JSONObject(cleanedResponse)
+
+                val parsedResponse = ChatbotResponse(
+                    text = json.getString("text"),
+                    gesture = json.optString("gesture", "calm"),
+                    emotion = json.optString("emotion", "neutral"),
+                    tokensUsed = totalTokens
+                )
+
+                println("Parsed successfully - Text: ${parsedResponse.text}")
+                println("Parsed successfully - Gesture: ${parsedResponse.gesture}")
+                println("Parsed successfully - Emotion: ${parsedResponse.emotion}")
+
+                parsedResponse
+            } catch (e: Exception) {
+                println("JSON Parsing Error: ${e.message}")
+                println("Attempting to extract text from malformed JSON...")
+
+                // Try to extract just the text field if JSON is malformed
+                val textMatch = Regex(""""text"\s*:\s*"([^"]+)"""").find(responseText)
+                val gestureMatch = Regex(""""gesture"\s*:\s*"([^"]+)"""").find(responseText)
+                val emotionMatch = Regex(""""emotion"\s*:\s*"([^"]+)"""").find(responseText)
+
+                if (textMatch != null) {
+                    val extractedText = textMatch.groupValues[1]
+                    println("Extracted text: $extractedText")
+                    ChatbotResponse(
+                        text = extractedText,
+                        gesture = gestureMatch?.groupValues?.get(1) ?: "tilt_left",
+                        emotion = emotionMatch?.groupValues?.get(1) ?: "neutral",
+                        tokensUsed = totalTokens
+                    )
+                } else {
+                    // Last resort: use the raw text
+                    println("Could not parse, using raw response")
+                    ChatbotResponse(
+                        text = responseText,
+                        gesture = "",
+                        emotion = "neutral",
+                        tokensUsed = totalTokens
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            println("Problem with connection to OpenAI: ${e.message}")
+            return ChatbotResponse(
+                text = "I'm not sure what to say right now.",
+                gesture = "",
+                emotion = "neutral",
+                tokensUsed = 0
+            )
+        }
+    }
+
+    /**
+     * Generates a closing statement when time is running out
+     */
+    fun getClosingStatement(): ChatbotResponse {
+            return ChatbotResponse(
+                text = "Thank you I really appreciate your time.",
+                gesture = "nod",
+                emotion = "grateful",
+                tokensUsed = 0
+            )
+//        }
+    }
+}
