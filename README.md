@@ -65,20 +65,19 @@ nancy-persona-prompt
 |-----------|--------|-------------|
 | Dialogue turns | `.csv` | Master file with one row per turn (session_id, turn_index, speaker, text, emotion, gesture, timestamp, elapsed_seconds, tokens_used) |
 | Session metadata | `.csv` | One row per session (session_id, persona, participant_id, date, duration_seconds, total_turns) |
-| Raw logs | `.json` | Original Furhat SDK logs per session |
-| Prompts | `.txt` | System and persona-specific prompts |
-| Documentation | `.md` | Markdown documentation files |
+| Raw logs | `.py` | Original Furhat SDK logs per session |
+| Prompts | `.py` | System and persona-specific prompts |
+| Documentation | `.py` | Markdown documentation files |
 
 ### Number of participants/sessions/trials
 - **Total participants**: 48 (38 with consent for public data release)
-- **Total sessions**: 56 dialogue sessions (released subset)
-- **Sessions per persona**: Alex (N=[X]), Jordan (N=[X]), Nancy (N=[X]), Joseph (N=[X])
+- **Total sessions**: 68 dialogue sessions (released subset)
+- **Sessions per persona**: Alex (N=17), Jordan (N=17), Nancy (N=17), Joseph (N=17)
 - **Turns per session**: M=[X], SD=[X], range=[X–X]
 
 ### Duration (if time-series/video)
 - **Session duration**: ~7 minutes per session (scheduled)
-- **Total dialogue time**: ~392 minutes (56 sessions × 7 minutes)
-- **Actual recorded duration**: [TOTAL_MINUTES] minutes (sum of elapsed_seconds across all sessions)
+- **Total dialogue time**: ~476 minutes (68 sessions × 7 minutes)
 
 ---
 
