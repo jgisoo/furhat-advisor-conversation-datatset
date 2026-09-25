@@ -49,23 +49,15 @@
 ---
 
 ## Dataset
-├── raw/ # raw sensor/log data
-│ ├── session_001_raw.json
-│ ├── session_002_raw.json
-│ └── ...
-├── processed/ # cleaned/processed data
-│ ├── sessions.csv # master file with all turns
-│ └── session_metadata.csv
-├── annotations/ # labels, codings, transcripts
-│ ├── emotion_gesture_mapping.csv
-│ └── persona_prompts/
-├── questionnaires/ # survey responses and scoring keys
-│ └── [if applicable]
-├── metadata.csv # participant/session-level metadata
-└── docs/ # data dictionary, codebooks
-├── data_dictionary.md
-└── codebook.md
 ### Contents & Structure
+alex-llm-settings
+alex-persona-prompt
+jordan-llm-settings
+jordan-persona-prompt
+joseph-llm-settings
+joseph-persona-prompt
+nancy-llm-settings
+nancy-persona-prompt
 
 
 ### File Formats
