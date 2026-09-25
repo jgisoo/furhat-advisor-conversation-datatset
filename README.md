@@ -172,39 +172,26 @@ PersonaDrift addresses a critical gap in embodied HRI datasets: turn-level align
   - Requires: Attribution to dataset authors, citation of paper
   - Prohibits: Commercial use, re-identification attempts
   
-- **Code (scripts, examples)**: [MIT License](https://opensource.org/licenses/MIT)
+- **Code: [MIT License](https://opensource.org/licenses/MIT)
   - Permits: Commercial and non-commercial use, modification, distribution
   - Requires: Include license text and copyright notice
-
-**Why CC BY-NC 4.0 for the dataset?**
-- Protects participant privacy by prohibiting commercial exploitation
-- Aligns with ethics approval requirements for student participant data
-- Standard choice for HRI datasets with human conversation data
-- Allows broad academic use while requiring attribution
 
 **How to apply the license:**
 1. Create `LICENSE` file in repository root with full license text
 2. Add `LICENSE.md` with human-readable summary
 3. Include license badge in README: `[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)`
-4. Add license metadata to Zenodo deposit (Zenodo will ask during upload)
+
 
 ### Long-term hosting
 - **Primary archive**: Zenodo (community: "human-robot interaction") — provides DOI, permanent storage, versioning
 - **GitHub**: Active development, issue tracking, community contributions
-- **Institutional repository**: University of Waterloo UWSpace (optional backup)
-- **Retention period**: Minimum 10 years from publication (per funder requirements)
 
 ### Update/maintenance plan
-- **Maintainers**: Corresponding authors (Samira Rasouli, Kerstin Dautenhahn)
 - **Monitoring**: GitHub Issues enabled for bug reports and data quality notifications
-- **Update schedule**: 
-  - Critical errata: Within 30 days of report
-  - Minor updates: Quarterly review of issues
-  - Major versions: As new data becomes available (e.g., additional personas, sessions)
-- **Deprecation policy**: Old versions remain accessible via Zenodo; GitHub points to latest stable release
-
+- **Update schedule**:
+  
 ### Access restrictions
-- **Public access**: Full dataset (56 sessions, 38 participants) available without restriction under CC BY-NC 4.0
+- **Public access**: Full dataset (68 sessions, 34 participants) available without restriction under CC BY-NC 4.0
 - **Restricted data**: 10 sessions from participants who did not consent to public release are not included
 - **Access requests**: No restricted portions; all released data is fully anonymized and public
 - **Future extensions**: Additional datasets with different consent levels will be clearly separated and documented
@@ -221,33 +208,14 @@ PersonaDrift addresses a critical gap in embodied HRI datasets: turn-level align
 1. Set up Furhat robot with SDK version [VERSION]
 2. Configure TTS engine and voice as specified in `dataset/annotations/persona_prompts/system_config.json`
 3. Deploy system prompts and persona prompts from `dataset/annotations/persona_prompts/`
-4. Configure LLM API (OpenAI GPT-4o-mini, snapshot [DATE]) with parameters in `dataset/annotations/persona_prompts/model_config.json`
-5. Recruit participants matching inclusion criteria (see Methods section of paper)
-6. Follow study protocol in `docs/study_protocol.md` (IRB-approved)
-7. Export raw logs using `/scripts/export_logs.py`
+4. Configure LLM API: OpenAI GPT-4o-mini, used in Feb,2026 `dataset/annotations/persona_prompts/model_config.json`
 
-### Steps to reproduce post-processing/analysis
-```bash
-# Clone repository
-git clone [https://github.com/](https://github.com/)[YOUR_USERNAME]/PersonaDrift.git
-cd PersonaDrift
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Process raw data
-python scripts/process_transcripts.py --input dataset/raw/ --output dataset/processed/
-
-# Run baseline analyses
-python scripts/baseline_drift_analysis.py --data dataset/processed/sessions.csv
-```
 
 ### Environment/dependencies
-- **Python**: 3.9+
-- **Core libraries**: pandas 1.5.0+, numpy 1.23+, openai 1.0+
-- **Furhat SDK**: [VERSION]
-- **Operating system**: Tested on Ubuntu 20.04, macOS 12+, Windows 11
-- **Full environment**: See `requirements.txt` and `environment.yml` for conda users
+- **Python**: 3.8+
+- **Furhat SDK**: 2.8
+- **Operating system**: Tested on Windows 11
 
 ---
 
@@ -256,7 +224,7 @@ python scripts/baseline_drift_analysis.py --data dataset/processed/sessions.csv
 If you use this dataset in your research, please cite:
 
 ```bibtex
-@inproceedings{jafari2026personadrift,
+@inproceedings{jafari2026dataset,
   author    = {Jafari, Golgisoo and Rasouli, Samira and Dautenhahn, Kerstin},
   title     = {A Turn-level Dataset of LLM-Driven Persona Dialogues with Emotion and Gestures on a Furhat Robot},
   booktitle = {Proceedings of the 2026 ACM/IEEE International Conference on Human-Robot Interaction},
