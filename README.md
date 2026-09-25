@@ -88,12 +88,12 @@ See [`docs/data_dictionary.md`](docs/data_dictionary.md) for complete variable d
 ### Key variables in `sessions.csv`
 | Variable | Type | Description | Units | Allowed values |
 |----------|------|-------------|-------|----------------|
-| `session_id` | string | Unique session identifier | — | e.g., "S001" |
+| `session_id` | string | Unique session identifier | — | e.g., "1","2",... |
 | `turn_index` | integer | Sequential turn number within session | — | 1, 2, 3, ... |
 | `speaker` | string | Who spoke this turn | — | "human", "robot" |
 | `text` | string | Utterance transcript | — | Free text |
 | `emotion` | string | LLM-generated emotion label | — | engaged, guarded, defensive, hopeful, concerned, frustrated, relieved, bored, neutral |
-| `gesture` | string | Executed Furhat gesture | — | See emotion_gesture_mapping.csv |
+| `gesture` | string | Executed Furhat gesture | — | See "name"-persona-prompt.csv |
 | `timestamp` | integer | Turn start time | milliseconds | Session-relative |
 | `elapsed_seconds` | float | Seconds since session start | seconds | 0.0–420.0 |
 | `tokens_used` | integer | API tokens for this turn | count | ≥0 (flag if 0 for robot turns) |
