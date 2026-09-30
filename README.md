@@ -63,7 +63,7 @@ nancy-persona-prompt
 
 ### Number of participants/sessions/trials
 - **Total participants**: 48 (35 with consent for public data release)
-- **Total sessions**: 70 dialogue sessions (released subset)
+- **Total sessions**: 69 dialogue sessions (released subset)
 - **Sessions per persona**: Alex (N=18), Jordan (N=18), Nancy (N=17), Joseph (N=17)
 
 ### Duration (if time-series/video)
@@ -146,7 +146,7 @@ PersonaDrift addresses a critical gap in embodied HRI datasets: turn-level align
 - **Update schedule**:
   
 ### Access restrictions
-- **Public access**: Full dataset (70 sessions, 35 participants) available without restriction under CC BY-NC 4.0
+- **Public access**: Full dataset (69 sessions, 35 participants) available without restriction under CC BY-NC 4.0
 - **Access requests**: No restricted portions; all released data is fully anonymized and public
 
 ---
