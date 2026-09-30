@@ -1,3 +1,16 @@
+package furhatos.app.openaichat.flow.chatbot
+
+import com.theokanning.openai.service.OpenAiService
+import com.theokanning.openai.completion.chat.ChatCompletionRequest
+import com.theokanning.openai.completion.chat.ChatMessage
+import com.theokanning.openai.completion.chat.ChatMessageRole
+import furhatos.app.openaichat.setting.Persona
+import furhatos.flow.kotlin.DialogHistory
+import furhatos.flow.kotlin.Furhat
+import org.json.JSONObject
+
+@Suppress("DEPRECATION")
+val serviceKey = System.getenv("OPENAI_API_KEY")
 data class ChatbotResponse(
     val text: String,
     val gesture: String,
