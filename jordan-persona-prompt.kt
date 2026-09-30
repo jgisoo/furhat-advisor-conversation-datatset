@@ -1,3 +1,13 @@
+package furhatos.app.openaichat.setting
+
+import furhatos.flow.kotlin.FlowControlRunner
+import furhatos.flow.kotlin.furhat
+import furhatos.flow.kotlin.voice.AcapelaVoice
+import furhatos.flow.kotlin.voice.AzureVoice
+import furhatos.flow.kotlin.voice.PollyNeuralVoice
+import furhatos.flow.kotlin.voice.Voice
+import furhatos.nlu.SimpleIntent
+
 class Persona(
     val name: String,
     val role: String,
